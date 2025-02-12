@@ -60,22 +60,79 @@ def register_user(email, password):
         conn.close()
 
 # Dashboard page
+# Dashboard page with Profile Setup
 def dashboard(email, role):
-    st.title("Dashboard")
-    st.write(f"Welcome, {email}!")
+    st.title("User Dashboard")
+    st.sidebar.title("Menu")
     
-    if role == "admin":
-        st.subheader("Admin Panel")
-        st.write("Manage users, upload market trends, and more.")
-    else:
-        st.subheader("User Dashboard")
-        st.write("View job recommendations, saved profiles, and more.")
-    
-    if st.button("Logout"):
-        st.session_state["logged_in"] = False
-        st.session_state["email"] = None
-        st.session_state["role"] = None
-        st.rerun()
+    menu_options = ["Profile Setup", "Job Recommendations", "Saved Jobs", "Settings"]
+    choice = st.sidebar.radio("Go to", menu_options)
+
+    conn = get_db_connection()
+    if not conn:
+        st.error("Database connection failed.")
+        return
+
+    cur = conn.cursor()
+
+    if choice == "Profile Setup":
+        st.subheader("Profile Setup")
+
+        # Fetch existing user data
+        cur.execute("SELECT full_name, skills, contact, locations, experience, job_role, salary, industries, job_type FROM users WHERE email = %s", (email,))
+        user_data = cur.fetchone()
+
+        # Default values if no data exists
+        full_name = user_data[0] if user_data and user_data[0] else ""
+        skills = ast.literal_eval(user_data[1]) if user_data and user_data[1] else []
+        contact = user_data[2] if user_data and user_data[2] else ""
+        locations = ast.literal_eval(user_data[3]) if user_data and user_data[3] else []
+        experience = user_data[4] if user_data and user_data[4] else 0
+        job_role = user_data[5] if user_data and user_data[5] else ""
+        salary = user_data[6] if user_data and user_data[6] else ""
+        industries = ast.literal_eval(user_data[7]) if user_data and user_data[7] else []
+        job_type = user_data[8] if user_data and user_data[8] else ""
+
+        # Input fields
+        full_name = st.text_input("Full Name", full_name)
+        skills = st.text_area("Skills (comma separated)", ", ".join(skills)).split(", ")
+        contact = st.text_input("Contact Information", contact)
+        locations = st.multiselect("Preferred Job Locations", ["Bangalore", "Hyderabad", "Delhi", "Mumbai", "Remote"], default=locations)
+        experience = st.number_input("Years of Experience", min_value=0, max_value=50, value=experience)
+        job_role = st.text_input("Job Role", job_role)
+        salary = st.text_input("Expected Salary Range", salary)
+        industries = st.multiselect("Interested Industries", ["IT", "Finance", "Healthcare", "Education"], default=industries)
+        job_type = st.selectbox("Preferred Job Type", ["Full-time", "Part-time", "Remote", "Contract"], index=["Full-time", "Part-time", "Remote", "Contract"].index(job_type) if job_type else 0)
+
+        # Save button
+        if st.button("Save Profile"):
+            try:
+                cur.execute("""
+                    UPDATE users SET full_name = %s, skills = %s, contact = %s, locations = %s, experience = %s, 
+                    job_role = %s, salary = %s, industries = %s, job_type = %s WHERE email = %s
+                """, (full_name, str(skills), contact, str(locations), experience, job_role, salary, str(industries), job_type, email))
+                conn.commit()
+                st.success("Profile updated successfully!")
+            except Exception as e:
+                st.error(f"Error updating profile: {e}")
+
+    elif choice == "Job Recommendations":
+        st.subheader("Job Recommendations")
+        st.write("Coming soon...")
+
+    elif choice == "Saved Jobs":
+        st.subheader("Saved Jobs")
+        st.write("No saved jobs yet.")
+
+    elif choice == "Settings":
+        st.subheader("Settings")
+        if st.button("Logout"):
+            st.session_state["logged_in"] = False
+            st.session_state["email"] = None
+            st.session_state["role"] = None
+            st.rerun()
+
+    conn.close()
 
 # Main function
 def main():
