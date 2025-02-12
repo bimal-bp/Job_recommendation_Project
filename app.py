@@ -64,7 +64,10 @@ def dashboard(email, role):
     st.title("User Dashboard")
     st.sidebar.title("Menu")
     
-    menu_options = ["Profile Setup", "Job Recommendations", "Saved Jobs", "Settings"]
+    menu_options = ["Profile Setup", "Job Recommendations"]
+    if role == "admin":
+        menu_options.append("Market Trends")
+    
     choice = st.sidebar.radio("Go to", menu_options)
 
     conn = get_db_connection()
@@ -119,17 +122,12 @@ def dashboard(email, role):
         st.subheader("Job Recommendations")
         st.write("Coming soon...")
 
-    elif choice == "Saved Jobs":
-        st.subheader("Saved Jobs")
-        st.write("No saved jobs yet.")
-
-    elif choice == "Settings":
-        st.subheader("Settings")
-        if st.button("Logout"):
-            st.session_state["logged_in"] = False
-            st.session_state["email"] = None
-            st.session_state["role"] = None
-            st.experimental_rerun()  # Use experimental_rerun to refresh the page
+    elif choice == "Market Trends" and role == "admin":
+        st.subheader("Market Trends")
+        trend_input = st.text_area("Enter Market Trends")
+        if st.button("Submit Trends"):
+            # Save the market trends to the database or any other storage
+            st.success("Market trends submitted successfully!")
 
     conn.close()
 
@@ -146,7 +144,7 @@ def main():
     if st.session_state["logged_in"]:
         dashboard(st.session_state["email"], st.session_state["role"])
     else:
-        option = st.radio("Select Option", ["Login", "Sign Up"])
+        option = st.radio("Select Option", ["Login", "Sign Up", "Admin Login"])
         
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
@@ -168,6 +166,16 @@ def main():
                     st.success("Registration Successful! Please login.")
                 else:
                     st.error("Registration failed. Please try again.")
+        elif option == "Admin Login":
+            admin_password = st.text_input("Admin Password", type="password")
+            if st.button("Admin Login"):
+                if admin_password == "admin123":  # Replace with a secure password or database check
+                    st.session_state["logged_in"] = True
+                    st.session_state["email"] = "admin@example.com"
+                    st.session_state["role"] = "admin"
+                    st.experimental_rerun()
+                else:
+                    st.error("Invalid admin password.")
 
 # Run the main function
 if __name__ == "__main__":
