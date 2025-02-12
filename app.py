@@ -5,14 +5,18 @@ import ast  # To convert database array strings into Python lists
 
 # Database connection
 def get_db_connection():
-    return psycopg2.connect(
-        dbname="neondb",
-        user="neondb_owner",
-        password="npg_hnmkC3SAi7Lc",
-        host="ep-steep-dawn-a87fu2ow-pooler.eastus2.azure.neon.tech",
-        port="5432",
-        sslmode="require"
-    )
+    try:
+        return psycopg2.connect(
+            dbname="neondb",
+            user="neondb_owner",
+            password="npg_hnmkC3SAi7Lc",
+            host="ep-steep-dawn-a87fu2ow-pooler.eastus2.azure.neon.tech",
+            port="5432",
+            sslmode="require"
+        )
+    except Exception as e:
+        st.error(f"Database connection error: {e}")
+        return None
 
 # Hash password
 def hash_password(password):
@@ -25,10 +29,14 @@ def check_password(password, hashed):
 # Authenticate user
 def authenticate_user(email, password):
     conn = get_db_connection()
+    if not conn:
+        return None
+    
     cur = conn.cursor()
     cur.execute("SELECT password, role FROM users WHERE email = %s", (email,))
     user = cur.fetchone()
     conn.close()
+    
     if user and check_password(password, user[0]):
         return user[1]  # Return role (user/admin)
     return None
@@ -36,15 +44,22 @@ def authenticate_user(email, password):
 # Fetch user profile
 def get_user_profile(email):
     conn = get_db_connection()
+    if not conn:
+        return None
+    
     cur = conn.cursor()
     cur.execute("SELECT * FROM user_profiles WHERE email = %s", (email,))
     user_profile = cur.fetchone()
     conn.close()
+    
     return user_profile
 
 # Save user profile
 def save_user_profile(email, full_name, skills, contact, locations, experience, job_role, salary, industries, job_type):
     conn = get_db_connection()
+    if not conn:
+        return
+    
     cur = conn.cursor()
     
     # Check if the profile exists
@@ -87,53 +102,81 @@ def profile_setup(email):
         save_user_profile(email, full_name, skills.split(","), contact, locations.split(","), experience, job_role, salary, industries.split(","), job_type)
         st.success("Profile saved successfully!")
 
+        # Set flag to False to return to Dashboard
+        st.session_state["editing_profile"] = False
+
 # Dashboard page
 def dashboard(email, role):
     st.title("Dashboard")
     st.write(f"Welcome, {email}!")
+
     if role == "admin":
         st.subheader("Admin Panel")
         st.write("Manage users, upload market trends, and more.")
     else:
         st.subheader("User Dashboard")
         st.write("View job recommendations, saved profiles, and more.")
-    
-    if st.button("Edit Profile"):
+
+    # Check if user is editing profile
+    if st.session_state.get("editing_profile", False):
         profile_setup(email)
+    else:
+        if st.button("Edit Profile"):
+            st.session_state["editing_profile"] = True
+            st.rerun()
 
 # Main function
 def main():
     st.title("User Authentication System")
+
+    # Initialize session state variables
+    if "logged_in" not in st.session_state:
+        st.session_state["logged_in"] = False
+        st.session_state["email"] = None
+        st.session_state["role"] = None
+
     page = st.sidebar.selectbox("Choose Page", ["Login", "Sign Up", "Dashboard"])
-    
+
     if page == "Login":
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
+
         if st.button("Login"):
             role = authenticate_user(email, password)
             if role:
                 st.success("Login Successful!")
-                dashboard(email, role)
+
+                # Store session data
+                st.session_state["logged_in"] = True
+                st.session_state["email"] = email
+                st.session_state["role"] = role
+
+                st.rerun()  # Reload to update UI
             else:
                 st.error("Invalid credentials. Please try again.")
-    
+
     elif page == "Sign Up":
         new_email = st.text_input("New Email")
         new_password = st.text_input("New Password", type="password")
+
         if st.button("Sign Up"):
             hashed_password = hash_password(new_password)
             conn = get_db_connection()
-            cur = conn.cursor()
-            try:
-                cur.execute("INSERT INTO users (email, password, role) VALUES (%s, %s, 'user')", (new_email, hashed_password))
-                conn.commit()
-                st.success("Account created successfully! You can now log in.")
-            except psycopg2.errors.UniqueViolation:
-                st.error("Email already exists. Please use a different email.")
-            conn.close()
-    
+            if conn:
+                cur = conn.cursor()
+                try:
+                    cur.execute("INSERT INTO users (email, password, role) VALUES (%s, %s, 'user')", (new_email, hashed_password))
+                    conn.commit()
+                    st.success("Account created successfully! You can now log in.")
+                except psycopg2.errors.UniqueViolation:
+                    st.error("Email already exists. Please use a different email.")
+                conn.close()
+
     elif page == "Dashboard":
-        st.warning("Please log in first!")
+        if st.session_state.get("logged_in", False):
+            dashboard(st.session_state["email"], st.session_state["role"])
+        else:
+            st.warning("Please log in first!")
 
 if __name__ == "__main__":
     main()
