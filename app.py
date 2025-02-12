@@ -2,6 +2,17 @@ import streamlit as st
 import psycopg2
 import bcrypt
 import ast  # To convert database array strings into Python lists
+import pickle  # To load the job recommendation model
+
+# Load the job recommendation model
+def load_recommendation_model():
+    try:
+        with open("job_recommendation_system.pkl", "rb") as f:
+            model = pickle.load(f)
+        return model
+    except Exception as e:
+        st.error(f"Error loading recommendation model: {e}")
+        return None
 
 # Database connection
 def get_db_connection():
@@ -118,7 +129,44 @@ def dashboard(email, role):
 
     elif choice == "Job Recommendations":
         st.subheader("Job Recommendations")
-        st.write("Coming soon...")
+        
+        # Load the recommendation model
+        model = load_recommendation_model()
+        if not model:
+            st.error("Failed to load the recommendation model.")
+            return
+
+        # Fetch user profile data
+        cur.execute("SELECT skills, experience, job_role, industries, job_type FROM users WHERE email = %s", (email,))
+        user_data = cur.fetchone()
+
+        if user_data:
+            skills = ast.literal_eval(user_data[0]) if user_data[0] else []
+            experience = user_data[1] if user_data[1] else 0
+            job_role = user_data[2] if user_data[2] else ""
+            industries = ast.literal_eval(user_data[3]) if user_data[3] else []
+            job_type = user_data[4] if user_data[4] else ""
+
+            # Prepare input for the recommendation model
+            input_data = {
+                "skills": ", ".join(skills),
+                "experience": experience,
+                "job_role": job_role,
+                "industries": ", ".join(industries),
+                "job_type": job_type
+            }
+
+            # Get recommendations
+            if st.button("Get Recommendations"):
+                try:
+                    recommendations = model.predict([input_data])  # Adjust based on your model's input format
+                    st.write("Top 5 Job Recommendations:")
+                    for i, recommendation in enumerate(recommendations[:5], 1):
+                        st.write(f"{i}. {recommendation}")
+                except Exception as e:
+                    st.error(f"Error generating recommendations: {e}")
+        else:
+            st.error("No user profile data found. Please complete your profile setup first.")
 
     elif choice == "Market Trends":
         st.subheader("Market Trends")
@@ -149,6 +197,7 @@ def dashboard(email, role):
                     st.error("Please enter some text before submitting.")
 
     conn.close()
+
 # Main function
 def main():
     st.title("User Authentication System")
