@@ -75,7 +75,7 @@ def dashboard(email, role):
     st.title("User Dashboard")
     st.sidebar.title("Menu")
     
-    menu_options = ["Profile Setup", "Job Recommendations", "Market Trends"]  # Add "Market Trends" for all users
+    menu_options = ["Profile Setup", "Market Trends"]  # Removed "Job Recommendations"
     
     choice = st.sidebar.radio("Go to", menu_options)
 
@@ -124,49 +124,25 @@ def dashboard(email, role):
                 """, (full_name, skills, contact, locations, experience, job_role, salary, industries, job_type, email))
                 conn.commit()
                 st.success("Profile updated successfully!")
-            except Exception as e:
-                st.error(f"Error updating profile: {e}")
 
-    elif choice == "Job Recommendations":
-        st.subheader("Job Recommendations")
-        
-        # Load the recommendation model
-        model = load_recommendation_model()
-        if not model:
-            st.error("Failed to load the recommendation model.")
-            return
-
-        # Fetch user profile data
-        cur.execute("SELECT skills, experience, job_role, industries, job_type FROM users WHERE email = %s", (email,))
-        user_data = cur.fetchone()
-
-        if user_data:
-            skills = ast.literal_eval(user_data[0]) if user_data[0] else []
-            experience = user_data[1] if user_data[1] else 0
-            job_role = user_data[2] if user_data[2] else ""
-            industries = ast.literal_eval(user_data[3]) if user_data[3] else []
-            job_type = user_data[4] if user_data[4] else ""
-
-            # Prepare input for the recommendation model
-            input_data = {
-                "skills": ", ".join(skills),
-                "experience": experience,
-                "job_role": job_role,
-                "industries": ", ".join(industries),
-                "job_type": job_type
-            }
-
-            # Get recommendations
-            if st.button("Get Recommendations"):
-                try:
+                # Provide job recommendations after saving the profile
+                model = load_recommendation_model()
+                if model:
+                    input_data = {
+                        "skills": ", ".join(skills),
+                        "experience": experience,
+                        "job_role": job_role,
+                        "industries": ", ".join(industries),
+                        "job_type": job_type
+                    }
                     recommendations = model.predict([input_data])  # Adjust based on your model's input format
-                    st.write("Top 5 Job Recommendations:")
+                    st.subheader("Top 5 Job Recommendations")
                     for i, recommendation in enumerate(recommendations[:5], 1):
                         st.write(f"{i}. {recommendation}")
-                except Exception as e:
-                    st.error(f"Error generating recommendations: {e}")
-        else:
-            st.error("No user profile data found. Please complete your profile setup first.")
+                else:
+                    st.error("Failed to load the recommendation model.")
+            except Exception as e:
+                st.error(f"Error updating profile: {e}")
 
     elif choice == "Market Trends":
         st.subheader("Market Trends")
