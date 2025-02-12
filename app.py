@@ -91,12 +91,13 @@ def dashboard(email, role):
 
         # Fetch existing user data
         # Fetch existing user data
+# Fetch existing user data
         cur.execute("SELECT full_name, skills, contact, locations, experience, job_role, salary, industries, job_type FROM users WHERE email = %s", (email,))
         user_data = cur.fetchone()
         
         # Default values if no data exists
         full_name = user_data[0] if user_data and user_data[0] else ""
-        skills = user_data[1].split(", ") if user_data and user_data[1] else []  # Split skills string into a list
+        skills = user_data[1].split(", ") if user_data and user_data[1] is not None else []  # Handle None case
         contact = user_data[2] if user_data and user_data[2] else ""
         locations = ast.literal_eval(user_data[3]) if user_data and user_data[3] else []
         experience = user_data[4] if user_data and user_data[4] else 0
