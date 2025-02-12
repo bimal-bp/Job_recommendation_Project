@@ -66,7 +66,7 @@ def dashboard(email, role):
     
     menu_options = ["Profile Setup", "Job Recommendations"]
     if role == "admin":
-        menu_options.append("Market Trends")
+        menu_options.append("Market Trends")  # Add "Market Trends" for admin
     
     choice = st.sidebar.radio("Go to", menu_options)
 
@@ -157,7 +157,7 @@ def main():
                     st.session_state["logged_in"] = True
                     st.session_state["email"] = email
                     st.session_state["role"] = role
-                    st.experimental_rerun()  # Refresh the page to show the dashboard
+                    st.rerun()  # Refresh the page to show the dashboard
                 else:
                     st.error("Invalid email or password.")
         elif option == "Sign Up":
@@ -173,7 +173,7 @@ def main():
                     st.session_state["logged_in"] = True
                     st.session_state["email"] = "admin@example.com"
                     st.session_state["role"] = "admin"
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("Invalid admin password.")
 
