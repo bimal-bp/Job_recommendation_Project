@@ -60,7 +60,6 @@ def register_user(email, password):
         conn.close()
 
 # Dashboard page
-# Dashboard page with Profile Setup
 def dashboard(email, role):
     st.title("User Dashboard")
     st.sidebar.title("Menu")
@@ -110,7 +109,7 @@ def dashboard(email, role):
                 cur.execute("""
                     UPDATE users SET full_name = %s, skills = %s, contact = %s, locations = %s, experience = %s, 
                     job_role = %s, salary = %s, industries = %s, job_type = %s WHERE email = %s
-                """, (full_name, str(skills), contact, str(locations), experience, job_role, salary, str(industries), job_type, email))
+                """, (full_name, skills, contact, locations, experience, job_role, salary, industries, job_type, email))
                 conn.commit()
                 st.success("Profile updated successfully!")
             except Exception as e:
@@ -160,18 +159,4 @@ def main():
                     st.session_state["logged_in"] = True
                     st.session_state["email"] = email
                     st.session_state["role"] = role
-                    st.rerun()
-                else:
-                    st.error("Invalid credentials. Please try again.")
-        
-        elif option == "Sign Up":
-            if st.button("Sign Up"):
-                if register_user(email, password):
-                    st.success("Account created successfully! You can now log in.")
-                    st.session_state["logged_in"] = True
-                    st.session_state["email"] = email
-                    st.session_state["role"] = "user"
-                    st.rerun()
-
-if __name__ == "__main__":
-    main()
+                    st.r
