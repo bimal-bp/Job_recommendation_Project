@@ -129,7 +129,7 @@ def dashboard(email, role):
             st.session_state["logged_in"] = False
             st.session_state["email"] = None
             st.session_state["role"] = None
-            st.rerun()
+            st.experimental_rerun()  # Use experimental_rerun to refresh the page
 
     conn.close()
 
@@ -159,4 +159,16 @@ def main():
                     st.session_state["logged_in"] = True
                     st.session_state["email"] = email
                     st.session_state["role"] = role
-                    st.r
+                    st.experimental_rerun()  # Refresh the page to show the dashboard
+                else:
+                    st.error("Invalid email or password.")
+        elif option == "Sign Up":
+            if st.button("Sign Up"):
+                if register_user(email, password):
+                    st.success("Registration Successful! Please login.")
+                else:
+                    st.error("Registration failed. Please try again.")
+
+# Run the main function
+if __name__ == "__main__":
+    main()
