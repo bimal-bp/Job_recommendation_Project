@@ -6,8 +6,10 @@ import pickle  # For loading the job recommendation model
 import numpy as np
 
 # Load the job recommendation model
-with open("job_recommendation_system.pkl", "rb") as model_file:
-    job_model = pickle.load(model_file)
+
+import joblib
+job_model = joblib.load("job_recommendation_system.pkl")
+
 
 # Database connection
 def get_db_connection():
