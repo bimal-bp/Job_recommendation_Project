@@ -1,20 +1,8 @@
+
 import streamlit as st
 import psycopg2
 import bcrypt
-import pickle
-import pandas as pd
-import ast  # To safely convert stored array strings into lists
-
-# Load the job recommendation model
-def load_model():
-    try:
-        with open("job_recommendation_system.pkl", "rb") as file:
-            return pickle.load(file)
-    except Exception as e:
-        st.error(f"Error loading job recommendation model: {e}")
-        return None
-
-model = load_model()
+import ast  # To convert database array strings into Python lists
 
 # Database connection
 def get_db_connection():
@@ -44,12 +32,12 @@ def authenticate_user(email, password):
     conn = get_db_connection()
     if not conn:
         return None
-
+    
     cur = conn.cursor()
     cur.execute("SELECT password, role FROM users WHERE email = %s", (email,))
     user = cur.fetchone()
     conn.close()
-
+    
     if user and check_password(password, user[0]):
         return user[1]  # Return role (user/admin)
     return None
@@ -59,7 +47,7 @@ def register_user(email, password):
     conn = get_db_connection()
     if not conn:
         return False
-
+    
     cur = conn.cursor()
     try:
         hashed_password = hash_password(password)
@@ -72,21 +60,13 @@ def register_user(email, password):
     finally:
         conn.close()
 
-# Job Recommendations
-def get_job_recommendations(user_profile):
-    if not model:
-        return []
-    
-    user_df = pd.DataFrame([user_profile])
-    recommendations = model.predict(user_df)
-    return recommendations
-
 # Dashboard page
 def dashboard(email, role):
     st.title("User Dashboard")
     st.sidebar.title("Menu")
-
-    menu_options = ["Profile Setup", "Market Trends"]
+    
+    menu_options = ["Profile Setup", "Job Recommendations", "Market Trends"]  # Add "Market Trends" for all users
+    
     choice = st.sidebar.radio("Go to", menu_options)
 
     conn = get_db_connection()
@@ -99,28 +79,19 @@ def dashboard(email, role):
     if choice == "Profile Setup":
         st.subheader("Profile Setup")
 
-        # Fetch user data
+        # Fetch existing user data
         cur.execute("SELECT full_name, skills, contact, locations, experience, job_role, salary, industries, job_type FROM users WHERE email = %s", (email,))
         user_data = cur.fetchone()
 
-        # Convert database fields properly
+        # Default values if no data exists
         full_name = user_data[0] if user_data and user_data[0] else ""
+        skills = ast.literal_eval(user_data[1]) if user_data and user_data[1] else []
         contact = user_data[2] if user_data and user_data[2] else ""
+        locations = ast.literal_eval(user_data[3]) if user_data and user_data[3] else []
         experience = user_data[4] if user_data and user_data[4] else 0
         job_role = user_data[5] if user_data and user_data[5] else ""
         salary = user_data[6] if user_data and user_data[6] else ""
-
-        # Convert skills, locations, and industries safely
-        def safe_eval(data):
-            try:
-                result = ast.literal_eval(data) if data else []
-                return result if isinstance(result, list) else []
-            except (ValueError, SyntaxError):
-                return []
-
-        skills = safe_eval(user_data[1])
-        locations = safe_eval(user_data[3])
-        industries = safe_eval(user_data[7])
+        industries = ast.literal_eval(user_data[7]) if user_data and user_data[7] else []
         job_type = user_data[8] if user_data and user_data[8] else ""
 
         # Input fields
@@ -140,79 +111,91 @@ def dashboard(email, role):
                 cur.execute("""
                     UPDATE users SET full_name = %s, skills = %s, contact = %s, locations = %s, experience = %s, 
                     job_role = %s, salary = %s, industries = %s, job_type = %s WHERE email = %s
-                """, (full_name, str(skills), contact, str(locations), experience, job_role, salary, str(industries), job_type, email))
+                """, (full_name, skills, contact, locations, experience, job_role, salary, industries, job_type, email))
                 conn.commit()
                 st.success("Profile updated successfully!")
             except Exception as e:
                 st.error(f"Error updating profile: {e}")
 
-        # Job Recommendations Section
+    elif choice == "Job Recommendations":
         st.subheader("Job Recommendations")
-
-        # Fetch user profile again
-        cur.execute("SELECT skills, experience, job_role, industries FROM users WHERE email = %s", (email,))
-        user_data = cur.fetchone()
-        if user_data:
-            skills = safe_eval(user_data[0])
-            experience = user_data[1]
-            job_role = user_data[2]
-            industries = safe_eval(user_data[3])
-
-            # Create input data for model
-            user_profile = {
-                "skills": " ".join(skills),
-                "experience": experience,
-                "job_role": job_role,
-                "industries": " ".join(industries)
-            }
-
-            # Get recommendations
-            recommendations = get_job_recommendations(user_profile)
-            if recommendations:
-                st.write("Recommended Jobs:")
-                for job in recommendations:
-                    st.write(f"- {job}")
-            else:
-                st.write("No job recommendations available.")
+        st.write("Coming soon...")
 
     elif choice == "Market Trends":
         st.subheader("Market Trends")
-        cur.execute("SELECT trend FROM market_trends ORDER BY id DESC")
+        
+        # Fetch and display market trends
+        cur.execute("SELECT trend FROM market_trends ORDER BY id DESC")  # Assuming you have a market_trends table
         trends = cur.fetchall()
-
+        
         if trends:
             st.write("Latest Market Trends:")
             for trend in trends:
                 st.write(f"- {trend[0]}")
         else:
             st.write("No market trends available.")
+        
+        # Allow only admins to submit new trends
+        if role == "admin":
+            trend_input = st.text_area("Enter Market Trends")
+            if st.button("Submit Trends"):
+                if trend_input:
+                    try:
+                        cur.execute("INSERT INTO market_trends (trend) VALUES (%s)", (trend_input,))
+                        conn.commit()
+                        st.success("Market trends submitted successfully!")
+                    except Exception as e:
+                        st.error(f"Error submitting trends: {e}")
+                else:
+                    st.error("Please enter some text before submitting.")
 
     conn.close()
-
 # Main function
 def main():
     st.title("User Authentication System")
-
+    
+    # Initialize session state variables
     if "logged_in" not in st.session_state:
         st.session_state["logged_in"] = False
         st.session_state["email"] = None
         st.session_state["role"] = None
-
+    
     if st.session_state["logged_in"]:
         dashboard(st.session_state["email"], st.session_state["role"])
     else:
-        option = st.radio("Select Option", ["Login", "Sign Up"])
+        option = st.radio("Select Option", ["Login", "Sign Up", "Admin Login"])
+        
         email = st.text_input("Email")
         password = st.text_input("Password", type="password")
+        
+        if option == "Login":
+            if st.button("Login"):
+                role = authenticate_user(email, password)
+                if role:
+                    st.success("Login Successful!")
+                    st.session_state["logged_in"] = True
+                    st.session_state["email"] = email
+                    st.session_state["role"] = role
+                    st.rerun()  # Refresh the page to show the dashboard
+                else:
+                    st.error("Invalid email or password.")
+        elif option == "Sign Up":
+            if st.button("Sign Up"):
+                if register_user(email, password):
+                    st.success("Registration Successful! Please login.")
+                else:
+                    st.error("Registration failed. Please try again.")
+        elif option == "Admin Login":
+            admin_password = st.text_input("Admin Password", type="password")
+            if st.button("Admin Login"):
+                if admin_password == "admin123":  # Replace with a secure password or database check
+                    st.session_state["logged_in"] = True
+                    st.session_state["email"] = "admin@example.com"
+                    st.session_state["role"] = "admin"
+                    st.rerun()
+                else:
+                    st.error("Invalid admin password.")
 
-        if option == "Login" and st.button("Login"):
-            role = authenticate_user(email, password)
-            if role:
-                st.session_state.update({"logged_in": True, "email": email, "role": role})
-                st.rerun()
-        elif option == "Sign Up" and st.button("Sign Up"):
-            if register_user(email, password):
-                st.success("Registration successful! Please log in.")
-
+# Run the main function
 if __name__ == "__main__":
     main()
