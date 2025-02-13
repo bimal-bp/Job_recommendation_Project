@@ -131,28 +131,48 @@ def dashboard(email, role):
     st.subheader("Job Recommendations")
     
     # Fetch job recommendations based on user profile
-    if st.button("Get Recommendations"):
-        st.write("Fetching job recommendations based on your profile...")
-        
-        # Example SQL query to fetch jobs based on user's skills and preferred locations
-        query = """
-            SELECT title, company, location, description 
-            FROM jobs 
-            WHERE location IN %s AND skills && %s
-        """
-        cur.execute(query, (tuple(locations), skills))
-        recommended_jobs = cur.fetchall()
-        
-        if recommended_jobs:
-            st.write("Here are some jobs that match your profile:")
-            for job in recommended_jobs:
-                st.write(f"**{job[0]}** at **{job[1]}** - {job[2]}")
-                st.write(f"{job[3]}")
-                st.write("---")
+if st.button("Get Recommendations"):
+    st.write("Fetching job recommendations based on your profile...")
+
+    # Fetch the latest user profile details
+    cur.execute("SELECT skills, locations FROM users WHERE email = %s ORDER BY updated_at DESC LIMIT 1", (email,))
+    user_profile = cur.fetchone()
+
+    if user_profile:
+        user_skills = parse_field(user_profile[0])  # Convert skills to list
+        user_locations = parse_field(user_profile[1])  # Convert locations to list
+
+        # Ensure skills and locations are not empty
+        if not user_skills or not user_locations:
+            st.warning("Please update your profile with skills and preferred locations.")
         else:
-            st.write("No jobs found that match your profile.")
-    
-    conn.close()
+            # Convert skills to a PostgreSQL array format
+            skills_array = "{" + ",".join(user_skills) + "}"
+            
+            query = """
+                SELECT title, company, location, description 
+                FROM jobs 
+                WHERE location = ANY(%s) 
+                AND skills && %s
+                ORDER BY similarity(description, %s) DESC
+                LIMIT 10
+            """
+            cur.execute(query, (user_locations, skills_array, " ".join(user_skills)))
+            recommended_jobs = cur.fetchall()
+
+            if recommended_jobs:
+                st.write("Here are some jobs that match your profile:")
+                for job in recommended_jobs:
+                    st.write(f"**{job[0]}** at **{job[1]}** - {job[2]}")
+                    st.write(f"{job[3]}")
+                    st.write("---")
+            else:
+                st.write("No matching jobs found.")
+    else:
+        st.warning("Profile data not found. Please complete your profile first.")
+
+conn.close()
+
     
 # Main function
 def main():
