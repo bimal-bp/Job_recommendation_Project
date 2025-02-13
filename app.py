@@ -64,7 +64,7 @@ def dashboard(email, role):
     st.title("User Dashboard")
     st.sidebar.title("Menu")
     
-    menu_options = ["Profile Setup", "Market Trends"]  # Removed "Job Recommendations"
+    menu_options = ["Profile Setup", "Market Trends"]  # Removed Job Recommendations from sidebar
     
     choice = st.sidebar.radio("Go to", menu_options)
 
@@ -116,7 +116,7 @@ def dashboard(email, role):
             except Exception as e:
                 st.error(f"Error updating profile: {e}")
 
-        # Job Recommendations Section (Now below Profile Setup)
+        # Job Recommendations below Profile Setup
         st.subheader("Job Recommendations")
         st.write("Coming soon...")
     
@@ -149,21 +149,3 @@ def dashboard(email, role):
                     st.error("Please enter some text before submitting.")
     
     conn.close()
-
-# Main function
-def main():
-    st.title("User Authentication System")
-    
-    if "logged_in" not in st.session_state:
-        st.session_state["logged_in"] = False
-        st.session_state["email"] = None
-        st.session_state["role"] = None
-    
-    if st.session_state["logged_in"]:
-        dashboard(st.session_state["email"], st.session_state["role"])
-    else:
-        st.write("Login or Sign Up")
-
-# Run the main function
-if __name__ == "__main__":
-    main()
