@@ -60,6 +60,9 @@ def register_user(email, password):
         conn.close()
 
 # Dashboard page
+import streamlit as st
+import ast
+
 def dashboard(email, role):
     st.title("User Dashboard")
     
@@ -116,19 +119,25 @@ def dashboard(email, role):
     if st.button("Get Recommendations"):
         st.write("Fetching job recommendations based on your profile...")
         
-        # Example SQL query to fetch jobs based on user's skills and preferred locations
+        # Enhanced SQL query to fetch jobs based on user's profile
         query = """
-            SELECT title, company, location, description 
+            SELECT title, company, location, description, salary_range, job_type 
             FROM jobs 
-            WHERE location IN %s AND skills && %s
+            WHERE location IN %s 
+            AND skills && %s 
+            AND industries && %s 
+            AND job_type = %s 
+            AND (salary_range IS NULL OR salary_range @> %s::numeric)
         """
-        cur.execute(query, (tuple(locations), skills))
+        cur.execute(query, (tuple(locations), skills, industries, job_type, salary))
         recommended_jobs = cur.fetchall()
         
         if recommended_jobs:
             st.write("Here are some jobs that match your profile:")
             for job in recommended_jobs:
                 st.write(f"**{job[0]}** at **{job[1]}** - {job[2]}")
+                st.write(f"**Salary Range:** {job[4]}")
+                st.write(f"**Job Type:** {job[5]}")
                 st.write(f"{job[3]}")
                 st.write("---")
         else:
