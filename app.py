@@ -112,20 +112,29 @@ def dashboard(email, role):
 
     st.subheader("Job Recommendations")
     
-    # Placeholder for job recommendations using a model
+    # Fetch job recommendations based on user profile
     if st.button("Get Recommendations"):
         st.write("Fetching job recommendations based on your profile...")
-        # Mock recommendation logic (Replace with actual ML model or API call)
-        recommended_jobs = [
-            f"{job_role} at XYZ Corp - {locations[0] if locations else 'Location'}",
-            f"{job_role} at ABC Ltd - {locations[1] if len(locations) > 1 else 'Remote'}",
-            f"{job_role} in {industries[0] if industries else 'IT'} sector - {salary}"
-        ]
-        for job in recommended_jobs:
-            st.write(f"- {job}")
+        
+        # Example SQL query to fetch jobs based on user's skills and preferred locations
+        query = """
+            SELECT title, company, location, description 
+            FROM jobs 
+            WHERE location IN %s AND skills && %s
+        """
+        cur.execute(query, (tuple(locations), skills))
+        recommended_jobs = cur.fetchall()
+        
+        if recommended_jobs:
+            st.write("Here are some jobs that match your profile:")
+            for job in recommended_jobs:
+                st.write(f"**{job[0]}** at **{job[1]}** - {job[2]}")
+                st.write(f"{job[3]}")
+                st.write("---")
+        else:
+            st.write("No jobs found that match your profile.")
     
     conn.close()
-
 # Main function
 def main():
     st.title("User Authentication System")
