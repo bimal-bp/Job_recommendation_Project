@@ -1,80 +1,55 @@
 import pandas as pd
-import streamlit as st
+import re
 import pickle
+import requests
+from io import StringIO
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
 
-# Load dataset directly
-@st.cache_resource
-def load_dataset():
-    try:
-        df = pd.read_csv("final_sample_data.csv")  # Load dataset
-        return df
-    except Exception as e:
-        st.error(f"Error loading dataset: {e}")
-        return None
+class JobRecommender:
+    def __init__(self, model_path='job_recommendation_system (1).pkl'):
+        self.lemmatizer = WordNetLemmatizer()
+        self.stop_words = set(stopwords.words('english'))
+        self.tfidf = None
+        self.df = None
+        self.tfidf_matrix = None
+        self.model_path = model_path
+        self.load_model()
 
-# Job Recommendation System Class
-class JobRecommendationSystem:
-    def __init__(self, df):
-        self.df = df  # Use the loaded dataset directly
+    def clean_text(self, text):
+        text = re.sub(r'[^a-zA-Z\s]', '', text.lower())
+        return ' '.join([self.lemmatizer.lemmatize(word) for word in text.split() if word not in self.stop_words])
+
+    def load_model(self):
+        try:
+            with open(self.model_path, 'rb') as f:
+                loaded_model = pickle.load(f)
+                self.df = loaded_model.df
+                self.tfidf = loaded_model.tfidf
+                self.tfidf_matrix = loaded_model.tfidf_matrix
+            print("Pre-trained model loaded successfully.")
+        except FileNotFoundError:
+            print("No pre-trained model found. Please provide a trained model.")
 
     def recommend_jobs(self, title, skills, experience, top_n=5):
-        """
-        Recommends jobs based on title, skills, and experience.
-        """
-        if self.df is None or self.df.empty:
-            return pd.DataFrame()  # Return empty DataFrame if dataset is not loaded
+        if self.df is None or self.tfidf is None or self.tfidf_matrix is None:
+            print("Model is not properly loaded.")
+            return pd.DataFrame()
+        
+        query_vec = self.tfidf.transform([self.clean_text(title + ' ' + skills)])
+        self.df['Similarity'] = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
+        recommendations = self.df[self.df['Experience'] <= experience]
+        return recommendations.sort_values(by='Similarity', ascending=False).head(top_n)[['Title', 'Company', 'job_link']]
 
-        # Convert user inputs to lowercase for case-insensitive matching
-        title = title.lower()
-        skills = skills.lower().split(", ")  # Convert skills to list
+# Get user input
+title = input("Enter your desired job title: ")
+skills = input("Enter your skills (comma-separated): ")
+experience = int(input("Enter your years of experience: "))
 
-        # Filter jobs that match the title (or similar titles)
-        filtered_jobs = self.df[self.df["Title"].str.lower().str.contains(title, na=False)]
-
-        # Further filter based on required skills
-        filtered_jobs = filtered_jobs[
-            filtered_jobs["Skills"].apply(lambda x: any(skill in x.lower() for skill in skills) if pd.notna(x) else False)
-        ]
-
-        # Filter jobs where required experience is less than or equal to the user's experience
-        filtered_jobs = filtered_jobs[filtered_jobs["Experience"] <= experience]
-
-        # Sort jobs based on relevance (e.g., experience match, skills match)
-        filtered_jobs["Skill_Match"] = filtered_jobs["Skills"].apply(lambda x: sum(skill in x.lower() for skill in skills))
-        filtered_jobs = filtered_jobs.sort_values(by=["Skill_Match", "Experience"], ascending=[False, True])
-
-        # Return top N jobs
-        return filtered_jobs[["Title", "Company", "job_link"]].head(top_n)
-
-
-# Load dataset
-df = load_dataset()
-
-# Initialize model with dataset
-if df is not None:
-    model = JobRecommendationSystem(df)
-else:
-    model = None
-
-# Streamlit UI
-st.title("🔍 Job Recommendation System")
-st.subheader("Find the Best Job Matches for You")
-
-# User input for job recommendation
-job_title = st.text_input("Enter Job Title:", placeholder="e.g., Developer")
-user_skills = st.text_area("Enter Your Skills (comma-separated):", placeholder="e.g., Python, SQL")
-experience = st.number_input("Enter Years of Experience:", min_value=0, max_value=50, value=1)
-
-# Button to generate recommendations
-if st.button("Get Job Recommendations"):
-    if model and job_title and user_skills and experience >= 0:
-        recommended_jobs = model.recommend_jobs(job_title, user_skills, experience)
-
-        st.subheader("📌 Recommended Jobs:")
-        if not recommended_jobs.empty:
-            for index, row in recommended_jobs.iterrows():
-                st.write(f"- **Title:** {row['Title']}, **Company:** {row['Company']}, [Apply Here]({row['job_link']})")
-        else:
-            st.write("❌ No matching jobs found.")
-    else:
-        st.warning("⚠️ Please fill out all fields before submitting.")
+# Load pre-trained model and get recommendations
+job_recommender = JobRecommender()
+recommendations = job_recommender.recommend_jobs(title, skills, experience, top_n=5)
+print("\nRecommended Jobs:")
+print(recommendations)
