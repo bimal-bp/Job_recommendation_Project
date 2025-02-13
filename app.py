@@ -1,6 +1,7 @@
 import streamlit as st
 import psycopg2
 import ast  # To convert database array strings into Python lists
+import pickle  # To load the pre-trained model for job recommendations
 
 # Hardcoded dictionary for skill learning links
 skill_links = {
@@ -136,6 +137,38 @@ def dashboard(email, role):
         except Exception as e:
             st.error(f"Error updating profile: {e}")
 
+    # Job Recommendation button
+    if st.button("Get Job Recommendations"):
+        try:
+            # Load the pre-trained model
+            with open('job_recommendation_model.pkl', 'rb') as model_file:
+                model = pickle.load(model_file)
+            
+            # Prepare user data for prediction
+            user_data_for_prediction = {
+                'skills': skills,
+                'experience': experience,
+                'job_role': job_role,
+                'industries': industries,
+                'job_type': job_type
+            }
+            
+            # Convert user data into a format suitable for the model
+            # (This step depends on how your model was trained)
+            # For example, if the model expects a DataFrame:
+            import pandas as pd
+            user_df = pd.DataFrame([user_data_for_prediction])
+            
+            # Get recommendations
+            recommendations = model.predict(user_df)
+            
+            # Display recommendations
+            st.write("### Job Recommendations:")
+            for job in recommendations:
+                st.write(f"- {job}")
+        except Exception as e:
+            st.error(f"Error generating job recommendations: {e}")
+
     conn.close()
 
 # Authentication Page
@@ -164,6 +197,17 @@ def authentication_page():
             else:
                 st.error("Registration failed. Please try again.")
 
+    elif option == "Admin Login":
+        if st.button("Admin Login"):
+            if email == "admin@example.com" and password == "admin123":  # Hardcoded admin credentials
+                st.success("Admin Login Successful!")
+                st.session_state["logged_in"] = True
+                st.session_state["email"] = email
+                st.session_state["role"] = "admin"
+                st.rerun()
+            else:
+                st.error("Invalid admin credentials.")
+
 # Main Function
 def main():
     st.title("User Authentication System")
@@ -176,12 +220,18 @@ def main():
 
     if st.session_state["logged_in"]:
         menu_options = ["Profile Setup", "Market Trends"]
+        if st.session_state["role"] == "admin":
+            menu_options.append("Admin Dashboard")
+
         choice = st.sidebar.radio("Go to", menu_options)
 
         if choice == "Profile Setup":
             dashboard(st.session_state["email"], st.session_state["role"])
         elif choice == "Market Trends":
             market_trends_page(st.session_state["email"])
+        elif choice == "Admin Dashboard":
+            st.write("Welcome to the Admin Dashboard")
+            # Add admin-specific functionality here
     else:
         authentication_page()
 
