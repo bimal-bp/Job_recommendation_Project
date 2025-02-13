@@ -1,6 +1,5 @@
 import psycopg2
 import streamlit as st
-import json  # Import for handling JSON data
 
 # Function to establish a database connection
 def get_db_connection():
@@ -24,8 +23,8 @@ def fetch_users():
     if conn:
         try:
             cur = conn.cursor()
-            # Ensure skills are retrieved as a proper JSON string
-            cur.execute("SELECT email, COALESCE(full_name, 'N/A'), COALESCE(array_to_json(skills), '[]') FROM users LIMIT 10;")
+            # Fetch users with correct data formatting
+            cur.execute("SELECT email, COALESCE(full_name, 'N/A'), COALESCE(skills, '{}') FROM users LIMIT 10;")
             users = cur.fetchall()
             cur.close()
             conn.close()
@@ -44,18 +43,19 @@ users_data = fetch_users()
 
 if users_data:
     for user in users_data:
-        email, full_name, skills_json = user
+        email, full_name, skills = user
         st.write(f"**Email:** {email}")
         st.write(f"**Name:** {full_name}")
-        
-        # Convert JSON string to list
-        try:
-            skills_list = json.loads(skills_json)  # Properly handle JSON skills
-        except json.JSONDecodeError:
+
+        # Convert skills to list if it's not already
+        if isinstance(skills, list):  # If skills are already a list
+            skills_list = skills
+        elif isinstance(skills, str) and skills.startswith("{"):  # Handle PostgreSQL array format {Python, PowerBI}
+            skills_list = skills.strip("{}").split(", ")
+        else:
             skills_list = ["N/A"]
 
         st.write(f"**Skills:** {', '.join(skills_list) if skills_list else 'N/A'}")
-        
         st.write("---")
 else:
     st.write("No users found.")
