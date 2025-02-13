@@ -23,7 +23,7 @@ def fetch_users():
     if conn:
         try:
             cur = conn.cursor()
-            cur.execute("SELECT email, full_name, skills FROM users LIMIT 10;")
+            cur.execute("SELECT email, COALESCE(full_name, 'N/A'), COALESCE(skills::text, '[]') FROM users LIMIT 10;")
             users = cur.fetchall()
             cur.close()
             conn.close()
@@ -35,16 +35,21 @@ def fetch_users():
 
 # Streamlit App
 st.title("User Dashboard")
+st.subheader("User Data")
 
 # Fetch and display user data
-st.subheader("User Data")
 users_data = fetch_users()
 
 if users_data:
     for user in users_data:
-        st.write(f"**Email:** {user[0]}")
-        st.write(f"**Name:** {user[1]}")
-        st.write(f"**Skills:** {user[2]}")
+        email, full_name, skills = user
+        st.write(f"**Email:** {email}")
+        st.write(f"**Name:** {full_name}")
+        
+        # Convert skills from string format to list format if necessary
+        skills_list = eval(skills) if skills.startswith("[") and skills.endswith("]") else [skills]
+        st.write(f"**Skills:** {', '.join(skills_list) if skills_list else 'N/A'}")
+        
         st.write("---")
 else:
     st.write("No users found.")
