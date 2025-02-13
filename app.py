@@ -62,7 +62,7 @@ skill_links = {
     "Generative AI": "https://www.coursera.org/specializations/generative-ai",
 }
 
-# Market Trends Page with Skill Links
+# Market Trends Page with 2 Skill Links
 def market_trends_page(email):
     st.title("Market Trends")
 
@@ -84,11 +84,11 @@ def market_trends_page(email):
 
     if missing_skills:
         st.write("### Recommended Skills to Learn:")
-        skill_list = "\n".join([f"- [{skill}]({skill_links.get(skill, '#')})" for skill in missing_skills])
+        # Display only 2 missing skills with links
+        skill_list = "\n".join([f"- [{skill}]({skill_links.get(skill, '#')})" for skill in missing_skills[:2]])
         st.markdown(skill_list)
     else:
         st.write("You're up to date with the trending skills! 🎉")
-
 
 
 # Main function
