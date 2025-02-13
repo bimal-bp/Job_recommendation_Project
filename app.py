@@ -1,5 +1,6 @@
 import psycopg2
 import streamlit as st
+import json  # Import for handling JSON data
 
 # Function to establish a database connection
 def get_db_connection():
@@ -17,13 +18,14 @@ def get_db_connection():
         st.error(f"Database connection failed: {e}")
         return None
 
-# Function to fetch user data from the database
+# Function to fetch user data
 def fetch_users():
     conn = get_db_connection()
     if conn:
         try:
             cur = conn.cursor()
-            cur.execute("SELECT email, COALESCE(full_name, 'N/A'), COALESCE(skills::text, '[]') FROM users LIMIT 10;")
+            # Ensure skills are retrieved as a proper JSON string
+            cur.execute("SELECT email, COALESCE(full_name, 'N/A'), COALESCE(array_to_json(skills), '[]') FROM users LIMIT 10;")
             users = cur.fetchall()
             cur.close()
             conn.close()
@@ -42,12 +44,16 @@ users_data = fetch_users()
 
 if users_data:
     for user in users_data:
-        email, full_name, skills = user
+        email, full_name, skills_json = user
         st.write(f"**Email:** {email}")
         st.write(f"**Name:** {full_name}")
         
-        # Convert skills from string format to list format if necessary
-        skills_list = eval(skills) if skills.startswith("[") and skills.endswith("]") else [skills]
+        # Convert JSON string to list
+        try:
+            skills_list = json.loads(skills_json)  # Properly handle JSON skills
+        except json.JSONDecodeError:
+            skills_list = ["N/A"]
+
         st.write(f"**Skills:** {', '.join(skills_list) if skills_list else 'N/A'}")
         
         st.write("---")
