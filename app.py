@@ -62,69 +62,59 @@ def register_user(email, password):
 # Dashboard page
 def dashboard(email, role):
     st.title("User Dashboard")
-    st.sidebar.title("Menu")
     
-    menu_options = ["Profile Setup", "Market Trends"]  # Removed Job Recommendations from sidebar
-    
-    choice = st.sidebar.radio("Go to", menu_options)
-
     conn = get_db_connection()
     if not conn:
         st.error("Database connection failed.")
         return
-
+    
     cur = conn.cursor()
 
-    if choice == "Profile Setup":
-        st.subheader("Profile Setup")
+    st.subheader("Profile Setup")
+    cur.execute("SELECT full_name, skills, contact, locations, experience, job_role, salary, industries, job_type FROM users WHERE email = %s", (email,))
+    user_data = cur.fetchone()
 
-        # Fetch existing user data
-        cur.execute("SELECT full_name, skills, contact, locations, experience, job_role, salary, industries, job_type FROM users WHERE email = %s", (email,))
-        user_data = cur.fetchone()
+    full_name = user_data[0] if user_data and user_data[0] else ""
+    skills = ast.literal_eval(user_data[1]) if user_data and user_data[1] else []
+    contact = user_data[2] if user_data and user_data[2] else ""
+    locations = ast.literal_eval(user_data[3]) if user_data and user_data[3] else []
+    experience = user_data[4] if user_data and user_data[4] else 0
+    job_role = user_data[5] if user_data and user_data[5] else ""
+    salary = user_data[6] if user_data and user_data[6] else ""
+    industries = ast.literal_eval(user_data[7]) if user_data and user_data[7] else []
+    job_type = user_data[8] if user_data and user_data[8] else ""
 
-        # Default values if no data exists
-        full_name = user_data[0] if user_data and user_data[0] else ""
-        skills = ast.literal_eval(user_data[1]) if user_data and user_data[1] else []
-        contact = user_data[2] if user_data and user_data[2] else ""
-        locations = ast.literal_eval(user_data[3]) if user_data and user_data[3] else []
-        experience = user_data[4] if user_data and user_data[4] else 0
-        job_role = user_data[5] if user_data and user_data[5] else ""
-        salary = user_data[6] if user_data and user_data[6] else ""
-        industries = ast.literal_eval(user_data[7]) if user_data and user_data[7] else []
-        job_type = user_data[8] if user_data and user_data[8] else ""
+    full_name = st.text_input("Full Name", full_name)
+    skills = st.text_area("Skills (comma separated)", ", ".join(skills)).split(", ")
+    contact = st.text_input("Contact Information", contact)
+    locations = st.multiselect("Preferred Job Locations", ["Bangalore", "Hyderabad", "Delhi", "Mumbai", "Remote"], default=locations)
+    experience = st.number_input("Years of Experience", min_value=0, max_value=50, value=experience)
+    job_role = st.text_input("Job Role", job_role)
+    salary = st.text_input("Expected Salary Range", salary)
+    industries = st.multiselect("Interested Industries", ["IT", "Finance", "Healthcare", "Education"], default=industries)
+    job_type = st.selectbox("Preferred Job Type", ["Full-time", "Part-time", "Remote", "Contract"], index=["Full-time", "Part-time", "Remote", "Contract"].index(job_type) if job_type else 0)
 
-        # Input fields
-        full_name = st.text_input("Full Name", full_name)
-        skills = st.text_area("Skills (comma separated)", ", ".join(skills)).split(", ")
-        contact = st.text_input("Contact Information", contact)
-        locations = st.multiselect("Preferred Job Locations", ["Bangalore", "Hyderabad", "Delhi", "Mumbai", "Remote"], default=locations)
-        experience = st.number_input("Years of Experience", min_value=0, max_value=50, value=experience)
-        job_role = st.text_input("Job Role", job_role)
-        salary = st.text_input("Expected Salary Range", salary)
-        industries = st.multiselect("Interested Industries", ["IT", "Finance", "Healthcare", "Education"], default=industries)
-        job_type = st.selectbox("Preferred Job Type", ["Full-time", "Part-time", "Remote", "Contract"], index=["Full-time", "Part-time", "Remote", "Contract"].index(job_type) if job_type else 0)
-
-        # Save button
-        if st.button("Save Profile"):
-            try:
-                cur.execute("""
-                    UPDATE users SET full_name = %s, skills = %s, contact = %s, locations = %s, experience = %s, 
-                    job_role = %s, salary = %s, industries = %s, job_type = %s WHERE email = %s
-                """, (full_name, skills, contact, locations, experience, job_role, salary, industries, job_type, email))
-                conn.commit()
-                st.success("Profile updated successfully!")
-            except Exception as e:
-                st.error(f"Error updating profile: {e}")
-
-        # Job Recommendations below Profile Setup
-        st.subheader("Job Recommendations")
-        st.write("Coming soon...")
+    if st.button("Save Profile"):
+        try:
+            cur.execute("""
+                UPDATE users SET full_name = %s, skills = %s, contact = %s, locations = %s, experience = %s, 
+                job_role = %s, salary = %s, industries = %s, job_type = %s WHERE email = %s
+            """, (full_name, skills, contact, locations, experience, job_role, salary, industries, job_type, email))
+            conn.commit()
+            st.success("Profile updated successfully!")
+        except Exception as e:
+            st.error(f"Error updating profile: {e}")
     
-    elif choice == "Market Trends":
+    st.subheader("Job Recommendations")
+    st.write("Coming soon...")
+    
+    st.sidebar.title("Menu")
+    menu_options = ["Market Trends"]  # Only Market Trends in the sidebar
+    choice = st.sidebar.radio("Go to", menu_options)
+    
+    if choice == "Market Trends":
         st.subheader("Market Trends")
-        
-        # Fetch and display market trends
-        cur.execute("SELECT trend FROM market_trends ORDER BY id DESC")  # Assuming you have a market_trends table
+        cur.execute("SELECT trend FROM market_trends ORDER BY id DESC")
         trends = cur.fetchall()
         
         if trends:
@@ -134,7 +124,6 @@ def dashboard(email, role):
         else:
             st.write("No market trends available.")
         
-        # Allow only admins to submit new trends
         if role == "admin":
             trend_input = st.text_area("Enter Market Trends")
             if st.button("Submit Trends"):
@@ -149,3 +138,32 @@ def dashboard(email, role):
                     st.error("Please enter some text before submitting.")
     
     conn.close()
+
+# Main function
+def main():
+    st.title("User Authentication System")
+    
+    if "logged_in" not in st.session_state:
+        st.session_state["logged_in"] = False
+        st.session_state["email"] = None
+        st.session_state["role"] = None
+    
+    if st.session_state["logged_in"]:
+        dashboard(st.session_state["email"], st.session_state["role"])
+    else:
+        option = st.radio("Select Option", ["Login", "Sign Up", "Admin Login"])
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        
+        if option == "Login" and st.button("Login"):
+            role = authenticate_user(email, password)
+            if role:
+                st.session_state["logged_in"] = True
+                st.session_state["email"] = email
+                st.session_state["role"] = role
+                st.rerun()
+            else:
+                st.error("Invalid email or password.")
+
+if __name__ == "__main__":
+    main()
