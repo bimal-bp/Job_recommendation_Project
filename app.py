@@ -189,5 +189,5 @@ def main():
             if register_user(email, password):
                 st.success("Registration Successful! Please login.")
 
-if _name_ == "_main_":
-    main()
+if __name__ == "__main__":
+    main()
