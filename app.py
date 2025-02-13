@@ -110,10 +110,15 @@ def dashboard(email, role):
 
     if st.button("Save Profile"):
         try:
+            skills_array = "{" + ",".join(f'"{skill}"' for skill in skills) + "}"
+            locations_array = "{" + ",".join(f'"{loc}"' for loc in locations) + "}"
+            industries_array = "{" + ",".join(f'"{ind}"' for ind in industries) + "}"
+            
             cur.execute("""
                 UPDATE users SET full_name = %s, skills = %s, contact = %s, locations = %s, experience = %s, 
                 job_role = %s, salary = %s, industries = %s, job_type = %s WHERE email = %s
-            """, (full_name, str(skills), contact, str(locations), experience, job_role, salary, str(industries), job_type, email))
+            """, (full_name, skills_array, contact, locations_array, experience, job_role, salary, industries_array, job_type, email))
+
             conn.commit()
             st.success("Profile updated successfully!")
         except Exception as e:
