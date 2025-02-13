@@ -60,8 +60,8 @@ def register_user(email, password):
         conn.close()
 
 # Dashboard page
-import streamlit as st
 import ast
+import streamlit as st
 
 def dashboard(email, role):
     st.title("User Dashboard")
@@ -81,14 +81,30 @@ def dashboard(email, role):
 
     # Default values if no data exists
     full_name = user_data[0] if user_data and user_data[0] else ""
-    skills = ast.literal_eval(user_data[1]) if user_data and user_data[1] else []
     contact = user_data[2] if user_data and user_data[2] else ""
-    locations = ast.literal_eval(user_data[3]) if user_data and user_data[3] else []
     experience = user_data[4] if user_data and user_data[4] else 0
     job_role = user_data[5] if user_data and user_data[5] else ""
     salary = user_data[6] if user_data and user_data[6] else ""
-    industries = ast.literal_eval(user_data[7]) if user_data and user_data[7] else []
     job_type = user_data[8] if user_data and user_data[8] else ""
+
+    # Safely parse skills, locations, and industries
+    try:
+        skills = ast.literal_eval(user_data[1]) if user_data and user_data[1] else []
+    except (ValueError, SyntaxError):
+        st.warning("Invalid data format for skills. Defaulting to an empty list.")
+        skills = []
+
+    try:
+        locations = ast.literal_eval(user_data[3]) if user_data and user_data[3] else []
+    except (ValueError, SyntaxError):
+        st.warning("Invalid data format for locations. Defaulting to an empty list.")
+        locations = []
+
+    try:
+        industries = ast.literal_eval(user_data[7]) if user_data and user_data[7] else []
+    except (ValueError, SyntaxError):
+        st.warning("Invalid data format for industries. Defaulting to an empty list.")
+        industries = []
 
     # Input fields
     full_name = st.text_input("Full Name", full_name)
@@ -107,7 +123,7 @@ def dashboard(email, role):
             cur.execute("""
                 UPDATE users SET full_name = %s, skills = %s, contact = %s, locations = %s, experience = %s, 
                 job_role = %s, salary = %s, industries = %s, job_type = %s WHERE email = %s
-            """, (full_name, skills, contact, locations, experience, job_role, salary, industries, job_type, email))
+            """, (full_name, str(skills), contact, str(locations), experience, job_role, salary, str(industries), job_type, email))
             conn.commit()
             st.success("Profile updated successfully!")
         except Exception as e:
@@ -119,25 +135,19 @@ def dashboard(email, role):
     if st.button("Get Recommendations"):
         st.write("Fetching job recommendations based on your profile...")
         
-        # Enhanced SQL query to fetch jobs based on user's profile
+        # Example SQL query to fetch jobs based on user's skills and preferred locations
         query = """
-            SELECT title, company, location, description, salary_range, job_type 
+            SELECT title, company, location, description 
             FROM jobs 
-            WHERE location IN %s 
-            AND skills && %s 
-            AND industries && %s 
-            AND job_type = %s 
-            AND (salary_range IS NULL OR salary_range @> %s::numeric)
+            WHERE location IN %s AND skills && %s
         """
-        cur.execute(query, (tuple(locations), skills, industries, job_type, salary))
+        cur.execute(query, (tuple(locations), skills))
         recommended_jobs = cur.fetchall()
         
         if recommended_jobs:
             st.write("Here are some jobs that match your profile:")
             for job in recommended_jobs:
                 st.write(f"**{job[0]}** at **{job[1]}** - {job[2]}")
-                st.write(f"**Salary Range:** {job[4]}")
-                st.write(f"**Job Type:** {job[5]}")
                 st.write(f"{job[3]}")
                 st.write("---")
         else:
