@@ -17,45 +17,36 @@ def get_db_connection():
         st.error(f"Database connection failed: {e}")
         return None
 
-# Function to fetch user data
-def fetch_users():
+# Function to fetch all user data
+def fetch_all_users():
     conn = get_db_connection()
     if conn:
         try:
             cur = conn.cursor()
-            # Fetch users with correct data formatting
-            cur.execute("SELECT email, COALESCE(full_name, 'N/A'), COALESCE(skills, '{}') FROM users LIMIT 10;")
+            # Fetch all data from the users table
+            cur.execute("SELECT * FROM users;")  # Fetch all rows
             users = cur.fetchall()
+            columns = [desc[0] for desc in cur.description]  # Get column names
             cur.close()
             conn.close()
-            return users
+            return users, columns
         except Exception as e:
             st.error(f"Error fetching data: {e}")
-            return []
-    return []
+            return [], []
+    return [], []
 
 # Streamlit App
 st.title("User Dashboard")
 st.subheader("User Data")
 
-# Fetch and display user data
-users_data = fetch_users()
+# Fetch and display all user data
+users_data, columns = fetch_all_users()
 
 if users_data:
-    for user in users_data:
-        email, full_name, skills = user
-        st.write(f"**Email:** {email}")
-        st.write(f"**Name:** {full_name}")
+    st.write(f"Total Users: {len(users_data)}")
+    
+    # Display data as a table
+    st.dataframe(users_data, columns=columns)
 
-        # Convert skills to list if it's not already
-        if isinstance(skills, list):  # If skills are already a list
-            skills_list = skills
-        elif isinstance(skills, str) and skills.startswith("{"):  # Handle PostgreSQL array format {Python, PowerBI}
-            skills_list = skills.strip("{}").split(", ")
-        else:
-            skills_list = ["N/A"]
-
-        st.write(f"**Skills:** {', '.join(skills_list) if skills_list else 'N/A'}")
-        st.write("---")
 else:
     st.write("No users found.")
