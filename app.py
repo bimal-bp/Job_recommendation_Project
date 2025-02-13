@@ -1,19 +1,28 @@
-# Example: Save the trained model
+import pandas as pd
 import pickle
+import streamlit as st
 
 # Load your dataset
-df = pd.read_csv('final_sample_data.csv')  # Replace with your dataset
+df = pd.read_csv('final_sample_data.csv')  # Ensure this file exists in the correct path
 
 # Initialize and preprocess the model
+class JobRecommendationSystem:
+    def preprocess_data(self, df):
+        pass  # Implement preprocessing logic
+
+    def recommend_jobs(self, title, skills, experience, top_n=5):
+        # Implement job recommendation logic
+        return pd.DataFrame([
+            {"Title": "Data Scientist", "Company": "XYZ Corp", "job_link": "http://example.com"},
+            {"Title": "ML Engineer", "Company": "ABC Inc", "job_link": "http://example.com"}
+        ])
+
 model = JobRecommendationSystem()
 model.preprocess_data(df)
 
 # Save the model
 with open('job_recommendation_system.pkl', 'wb') as f:
     pickle.dump(model, f)
-
-import streamlit as st
-import pickle
 
 # Load the trained job recommendation model
 @st.cache_resource
@@ -24,6 +33,7 @@ def load_model():
     except Exception as e:
         st.error(f"Error loading model: {e}")
         return None 
+
 # Function to predict job recommendations
 def predict_jobs(title, skills, experience, salary):
     model = load_model()
@@ -57,7 +67,10 @@ if st.button("Get Job Recommendations"):
     if job_title and user_skills and experience >= 0 and salary >= 0:
         recommended_jobs = predict_jobs(job_title, user_skills, experience, salary)
         st.subheader("Recommended Jobs:")
-        for index, row in recommended_jobs.iterrows():
-            st.write(f"- **Title:** {row['Title']}, **Company:** {row['Company']}, **Link:** {row['job_link']}")
+        if isinstance(recommended_jobs, pd.DataFrame):
+            for _, row in recommended_jobs.iterrows():
+                st.write(f"- **Title:** {row['Title']}, **Company:** {row['Company']}, **Link:** {row['job_link']}")
+        else:
+            st.write(recommended_jobs[0])  # Show error message if any
     else:
         st.warning("Please fill out all fields before submitting.")
