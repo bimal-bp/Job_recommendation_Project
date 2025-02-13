@@ -51,13 +51,14 @@ def get_market_trend_skills():
     return [trend[0] for trend in trends] if trends else []
 
 # Market Trends Page
+# Hardcoded dictionary for skill learning links
 skill_links = {
-    "Python": "https://www.coursera.org/learn/python",
-    "SQL": "https://www.udemy.com/course/sql-for-data-analysis/",
-    "Machine Learning": "https://www.coursera.org/learn/machine-learning",
-    "Data Visualization": "https://www.kaggle.com/learn/data-visualization",
-    "AI Course": "https://www.deeplearning.ai/courses/",
-    "Cloud Course": "https://www.udemy.com/course/aws-certified-cloud-practitioner/",
+    "Blockchain": "https://www.coursera.org/specializations/blockchain",
+    "IoT": "https://www.udemy.com/course/iot-internet-of-things/",
+    "5G": "https://www.coursera.org/learn/5g-wireless",
+    "Augmented Reality (AR) & Virtual Reality (VR)": "https://www.udemy.com/course/ar-vr-development/",
+    "AI, ML, and Data Science": "https://www.deeplearning.ai/courses/",
+    "Cloud Computing": "https://www.udemy.com/course/aws-certified-cloud-practitioner/",
     "Generative AI": "https://www.coursera.org/specializations/generative-ai",
 }
 
@@ -79,15 +80,15 @@ def market_trends_page(email):
     user_skills = get_user_skills(email)
 
     # Compare user skills with trending skills
-    missing_skills = list(set(market_trend_skills) - set(user_skills))
+    missing_skills = sorted(list(set(market_trend_skills) - set(user_skills)))
 
     if missing_skills:
         st.write("### Recommended Skills to Learn:")
-        for skill in missing_skills:
-            link = skill_links.get(skill, "#")  # Get link or default to '#'
-            st.markdown(f"- [{skill}]({link})")
+        skill_list = "\n".join([f"- [{skill}]({skill_links.get(skill, '#')})" for skill in missing_skills])
+        st.markdown(skill_list)
     else:
         st.write("You're up to date with the trending skills! 🎉")
+
 
 
 # Main function
