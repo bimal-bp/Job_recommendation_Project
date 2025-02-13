@@ -1,5 +1,6 @@
 import psycopg2
 import streamlit as st
+import pandas as pd  # Import pandas
 
 # Function to establish a database connection
 def get_db_connection():
@@ -24,29 +25,29 @@ def fetch_all_users():
         try:
             cur = conn.cursor()
             # Fetch all data from the users table
-            cur.execute("SELECT * FROM users;")  # Fetch all rows
+            cur.execute("SELECT * FROM users;")  
             users = cur.fetchall()
             columns = [desc[0] for desc in cur.description]  # Get column names
             cur.close()
             conn.close()
-            return users, columns
+            
+            # Convert to Pandas DataFrame
+            df = pd.DataFrame(users, columns=columns)
+            return df
         except Exception as e:
             st.error(f"Error fetching data: {e}")
-            return [], []
-    return [], []
+            return pd.DataFrame()  # Return empty DataFrame on error
+    return pd.DataFrame()
 
 # Streamlit App
 st.title("User Dashboard")
 st.subheader("User Data")
 
 # Fetch and display all user data
-users_data, columns = fetch_all_users()
+users_df = fetch_all_users()
 
-if users_data:
-    st.write(f"Total Users: {len(users_data)}")
-    
-    # Display data as a table
-    st.dataframe(users_data, columns=columns)
-
+if not users_df.empty:
+    st.write(f"Total Users: {len(users_df)}")
+    st.dataframe(users_df)  # Display as a table
 else:
     st.write("No users found.")
