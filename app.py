@@ -86,7 +86,7 @@ def dashboard(email, role):
     st.title("User Dashboard")
     st.sidebar.title("Menu")
 
-    menu_options = ["Profile Setup", "Market Trends", "Job Recommendations"]
+    menu_options = ["Profile Setup", "Market Trends"]
     choice = st.sidebar.radio("Go to", menu_options)
 
     conn = get_db_connection()
@@ -146,19 +146,7 @@ def dashboard(email, role):
             except Exception as e:
                 st.error(f"Error updating profile: {e}")
 
-    elif choice == "Market Trends":
-        st.subheader("Market Trends")
-        cur.execute("SELECT trend FROM market_trends ORDER BY id DESC")
-        trends = cur.fetchall()
-
-        if trends:
-            st.write("Latest Market Trends:")
-            for trend in trends:
-                st.write(f"- {trend[0]}")
-        else:
-            st.write("No market trends available.")
-
-    elif choice == "Job Recommendations":
+        # Job Recommendations Section
         st.subheader("Job Recommendations")
 
         # Fetch user profile again
@@ -180,9 +168,24 @@ def dashboard(email, role):
 
             # Get recommendations
             recommendations = get_job_recommendations(user_profile)
-            st.write("Recommended Jobs:")
-            for job in recommendations:
-                st.write(f"- {job}")
+            if recommendations:
+                st.write("Recommended Jobs:")
+                for job in recommendations:
+                    st.write(f"- {job}")
+            else:
+                st.write("No job recommendations available.")
+
+    elif choice == "Market Trends":
+        st.subheader("Market Trends")
+        cur.execute("SELECT trend FROM market_trends ORDER BY id DESC")
+        trends = cur.fetchall()
+
+        if trends:
+            st.write("Latest Market Trends:")
+            for trend in trends:
+                st.write(f"- {trend[0]}")
+        else:
+            st.write("No market trends available.")
 
     conn.close()
 
@@ -207,6 +210,9 @@ def main():
             if role:
                 st.session_state.update({"logged_in": True, "email": email, "role": role})
                 st.rerun()
+        elif option == "Sign Up" and st.button("Sign Up"):
+            if register_user(email, password):
+                st.success("Registration successful! Please log in.")
 
 if __name__ == "__main__":
     main()
