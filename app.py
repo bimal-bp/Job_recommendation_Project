@@ -1,3 +1,17 @@
+# Example: Save the trained model
+import pickle
+
+# Load your dataset
+df = pd.read_csv('final_sample_data.csv')  # Replace with your dataset
+
+# Initialize and preprocess the model
+model = JobRecommendationSystem()
+model.preprocess_data(df)
+
+# Save the model
+with open('job_recommendation_system.pkl', 'wb') as f:
+    pickle.dump(model, f)
+
 import streamlit as st
 import pickle
 
@@ -9,8 +23,7 @@ def load_model():
             return pickle.load(model_file)
     except Exception as e:
         st.error(f"Error loading model: {e}")
-        return None
-
+        return None 
 # Function to predict job recommendations
 def predict_jobs(title, skills, experience, salary):
     model = load_model()
@@ -44,7 +57,7 @@ if st.button("Get Job Recommendations"):
     if job_title and user_skills and experience >= 0 and salary >= 0:
         recommended_jobs = predict_jobs(job_title, user_skills, experience, salary)
         st.subheader("Recommended Jobs:")
-        for job in recommended_jobs:
-            st.write(f"- {job}")
+        for index, row in recommended_jobs.iterrows():
+            st.write(f"- **Title:** {row['Title']}, **Company:** {row['Company']}, **Link:** {row['job_link']}")
     else:
         st.warning("Please fill out all fields before submitting.")
