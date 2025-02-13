@@ -2,14 +2,6 @@ import streamlit as st
 import psycopg2
 import bcrypt
 import ast  # To convert database array strings into Python lists
-import pickle  # For loading the job recommendation model
-import numpy as np
-
-# Load the job recommendation model
-
-import joblib
-job_model = joblib.load("job_recommendation_system.pkl")
-
 
 # Database connection
 def get_db_connection():
@@ -76,12 +68,6 @@ def parse_field(data):
     except (ValueError, SyntaxError):
         return [item.strip() for item in data.split(",")]
 
-# Predict job recommendations using model
-def predict_jobs(user_skills, user_experience):
-    user_vector = np.array([user_experience] + [1 if skill in user_skills else 0 for skill in job_model["skills_list"]])
-    job_scores = job_model["model"].predict(user_vector.reshape(1, -1))
-    return job_model["jobs_df"].iloc[np.argsort(-job_scores[0])[:10]]  # Top 10 jobs
-
 # Dashboard function
 def dashboard(email, role):
     st.title("User Dashboard")
@@ -101,16 +87,21 @@ def dashboard(email, role):
     """, (email,))
     user_data = cur.fetchone()
 
-    full_name = user_data[0] if user_data and user_data[0] else ""
-    contact = user_data[2] if user_data and user_data[2] else ""
-    experience = user_data[4] if user_data and user_data[4] else 0
-    job_role = user_data[5] if user_data and user_data[5] else ""
-    salary = user_data[6] if user_data and user_data[6] else ""
-    job_type = user_data[8] if user_data and user_data[8] else ""
+    if user_data is None:
+        st.error("User data not found.")
+        conn.close()
+        return
 
-    skills = parse_field(user_data[1]) if user_data and user_data[1] else []
-    locations = parse_field(user_data[3]) if user_data and user_data[3] else []
-    industries = parse_field(user_data[7]) if user_data and user_data[7] else []
+    full_name = user_data[0] if user_data[0] else ""
+    contact = user_data[2] if user_data[2] else ""
+    experience = user_data[4] if user_data[4] else 0
+    job_role = user_data[5] if user_data[5] else ""
+    salary = user_data[6] if user_data[6] else ""
+    job_type = user_data[8] if user_data[8] else ""
+
+    skills = parse_field(user_data[1]) if user_data[1] else []
+    locations = parse_field(user_data[3]) if user_data[3] else []
+    industries = parse_field(user_data[7]) if user_data[7] else []
 
     full_name = st.text_input("Full Name", full_name)
     skills = st.text_area("Skills (comma separated)", ", ".join(skills)).split(", ")
@@ -140,15 +131,55 @@ def dashboard(email, role):
 
     st.subheader("Job Recommendations")
     if st.button("Get Recommendations"):
-        if skills and experience:
-            recommended_jobs = predict_jobs(skills, experience)
-            for _, job in recommended_jobs.iterrows():
-                st.write(f"**{job['title']}** at **{job['company']}** - {job['location']}")
-                st.write(f"{job['description']}")
-                st.write("---")
-        else:
-            st.warning("Please update your profile with skills and experience.")
+        cur.execute("SELECT skills, locations FROM users WHERE email = %s", (email,))
+        user_profile = cur.fetchone()
+
+        if user_profile:
+            user_skills = parse_field(user_profile[0])
+            user_locations = parse_field(user_profile[1])
+            
+            if not user_skills or not user_locations:
+                st.warning("Please update your profile with skills and preferred locations.")
+            else:
+                cur.execute("""
+                    SELECT title, company, location, description FROM jobs
+                    WHERE location = ANY(%s) AND skills && %s
+                    ORDER BY similarity(description, %s) DESC LIMIT 10
+                """, (user_locations, user_skills, " ".join(user_skills)))
+                recommended_jobs = cur.fetchall()
+
+                if recommended_jobs:
+                    st.write("Here are some jobs that match your profile:")
+                    for job in recommended_jobs:
+                        st.write(f"**{job[0]}** at **{job[1]}** - {job[2]}")
+                        st.write(f"{job[3]}")
+                        st.write("---")
+                else:
+                    st.write("No matching jobs found.")
     conn.close()
+
+# Main function
+def main():
+    st.title("User Authentication System")
+    if "logged_in" not in st.session_state:
+        st.session_state.update({"logged_in": False, "email": None, "role": None})
+    
+    if st.session_state["logged_in"]:
+        dashboard(st.session_state["email"], st.session_state["role"])
+    else:
+        option = st.radio("Select Option", ["Login", "Sign Up", "Admin Login"])
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        if option == "Login" and st.button("Login"):
+            role = authenticate_user(email, password)
+            if role:
+                st.session_state.update({"logged_in": True, "email": email, "role": role})
+                st.rerun()
+            else:
+                st.error("Invalid email or password.")
+        elif option == "Sign Up" and st.button("Sign Up"):
+            if register_user(email, password):
+                st.success("Registration Successful! Please login.")
 
 if __name__ == "__main__":
     main()
