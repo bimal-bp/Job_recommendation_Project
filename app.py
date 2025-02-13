@@ -51,7 +51,7 @@ def get_market_trend_skills():
     return [trend[0] for trend in trends] if trends else []
 
 # Market Trends Page
-# Hardcoded dictionary for skill learning links
+
 skill_links = {
     "Blockchain": "https://www.coursera.org/specializations/blockchain",
     "IoT": "https://www.udemy.com/course/iot-internet-of-things/",
@@ -62,7 +62,7 @@ skill_links = {
     "Generative AI": "https://www.coursera.org/specializations/generative-ai",
 }
 
-# Market Trends Page with 2 Skill Links
+# Market Trends Page with Clickable Links for 2 Missing Skills
 def market_trends_page(email):
     st.title("Market Trends")
 
@@ -84,9 +84,10 @@ def market_trends_page(email):
 
     if missing_skills:
         st.write("### Recommended Skills to Learn:")
-        # Display only 2 missing skills with links
-        skill_list = "\n".join([f"- [{skill}]({skill_links.get(skill, '#')})" for skill in missing_skills[:2]])
-        st.markdown(skill_list)
+        # Show only 2 missing skills with proper clickable links
+        for skill in missing_skills[:2]:
+            link = skill_links.get(skill, "#")
+            st.markdown(f"- [{skill}]({link})", unsafe_allow_html=True)
     else:
         st.write("You're up to date with the trending skills! 🎉")
 
