@@ -5,8 +5,7 @@ import pickle
 import pandas as pd
 import ast  # To safely convert stored array strings into lists
 
-# Import the JobRecommendationSystem class
-from job_recommendation_system import JobRecommendationSystem
+
 
 # Load the job recommendation model
 def load_model():
