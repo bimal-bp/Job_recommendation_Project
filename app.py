@@ -61,12 +61,18 @@ def register_user(email, password):
 
 # Parse field safely
 def parse_field(data):
-    if not data:
+    if data is None:
         return []
-    try:
-        return ast.literal_eval(data)
-    except (ValueError, SyntaxError):
-        return [item.strip() for item in data.split(",")]
+    if isinstance(data, str):
+        try:
+            # Try to evaluate as a Python list (if stored as a string representation)
+            return ast.literal_eval(data)
+        except (ValueError, SyntaxError):
+            # Fallback to splitting by commas
+            return [item.strip() for item in data.split(",")]
+    elif isinstance(data, list):
+        return data
+    return []
 
 # Dashboard function
 def dashboard(email, role):
@@ -92,17 +98,18 @@ def dashboard(email, role):
         conn.close()
         return
 
+    # Safely parse fields
     full_name = user_data[0] if user_data[0] else ""
+    skills = parse_field(user_data[1])  # Handle None or empty skills
     contact = user_data[2] if user_data[2] else ""
+    locations = parse_field(user_data[3])  # Handle None or empty locations
     experience = user_data[4] if user_data[4] else 0
     job_role = user_data[5] if user_data[5] else ""
     salary = user_data[6] if user_data[6] else ""
+    industries = parse_field(user_data[7])  # Handle None or empty industries
     job_type = user_data[8] if user_data[8] else ""
 
-    skills = parse_field(user_data[1]) if user_data[1] else []
-    locations = parse_field(user_data[3]) if user_data[3] else []
-    industries = parse_field(user_data[7]) if user_data[7] else []
-
+    # Input fields for profile update
     full_name = st.text_input("Full Name", full_name)
     skills = st.text_area("Skills (comma separated)", ", ".join(skills)).split(", ")
     contact = st.text_input("Contact Information", contact)
@@ -115,6 +122,7 @@ def dashboard(email, role):
 
     if st.button("Save Profile"):
         try:
+            # Convert lists to PostgreSQL array format
             skills_array = "{" + ",".join(f'"{skill}"' for skill in skills) + "}"
             locations_array = "{" + ",".join(f'"{loc}"' for loc in locations) + "}"
             industries_array = "{" + ",".join(f'"{ind}"' for ind in industries) + "}"
