@@ -63,6 +63,19 @@ def register_user(email, password):
 import ast
 import streamlit as st
 
+def parse_field(data):
+    """
+    Safely parse a field that could be a Python literal or a comma-separated string.
+    """
+    if not data:
+        return []
+    try:
+        # Try to parse as a Python literal (e.g., a list)
+        return ast.literal_eval(data)
+    except (ValueError, SyntaxError):
+        # If parsing fails, assume it's a comma-separated string and split it
+        return [item.strip() for item in data.split(",")]
+
 def dashboard(email, role):
     st.title("User Dashboard")
     
@@ -88,23 +101,9 @@ def dashboard(email, role):
     job_type = user_data[8] if user_data and user_data[8] else ""
 
     # Safely parse skills, locations, and industries
-    try:
-        skills = ast.literal_eval(user_data[1]) if user_data and user_data[1] else []
-    except (ValueError, SyntaxError):
-        st.warning("Invalid data format for skills. Defaulting to an empty list.")
-        skills = []
-
-    try:
-        locations = ast.literal_eval(user_data[3]) if user_data and user_data[3] else []
-    except (ValueError, SyntaxError):
-        st.warning("Invalid data format for locations. Defaulting to an empty list.")
-        locations = []
-
-    try:
-        industries = ast.literal_eval(user_data[7]) if user_data and user_data[7] else []
-    except (ValueError, SyntaxError):
-        st.warning("Invalid data format for industries. Defaulting to an empty list.")
-        industries = []
+    skills = parse_field(user_data[1]) if user_data and user_data[1] else []
+    locations = parse_field(user_data[3]) if user_data and user_data[3] else []
+    industries = parse_field(user_data[7]) if user_data and user_data[7] else []
 
     # Input fields
     full_name = st.text_input("Full Name", full_name)
@@ -154,6 +153,7 @@ def dashboard(email, role):
             st.write("No jobs found that match your profile.")
     
     conn.close()
+    
 # Main function
 def main():
     st.title("User Authentication System")
