@@ -2,17 +2,6 @@ import streamlit as st
 import psycopg2
 import bcrypt
 import ast  # To convert database array strings into Python lists
-import pickle  # To load the job recommendation model
-
-# Load the job recommendation model
-def load_recommendation_model():
-    try:
-        with open("job_recommendation_system.pkl", "rb") as f:
-            model = pickle.load(f)
-        return model
-    except Exception as e:
-        st.error(f"Error loading recommendation model: {e}")
-        return None
 
 # Database connection
 def get_db_connection():
@@ -75,7 +64,7 @@ def dashboard(email, role):
     st.title("User Dashboard")
     st.sidebar.title("Menu")
     
-    menu_options = ["Profile Setup", "Market Trends"]  # Removed "Job Recommendations"
+    menu_options = ["Profile Setup", "Job Recommendations", "Market Trends"]  # Add "Market Trends" for all users
     
     choice = st.sidebar.radio("Go to", menu_options)
 
@@ -90,35 +79,19 @@ def dashboard(email, role):
         st.subheader("Profile Setup")
 
         # Fetch existing user data
-        # Fetch existing user data
-# Fetch existing user data
-# Fetch existing user data
         cur.execute("SELECT full_name, skills, contact, locations, experience, job_role, salary, industries, job_type FROM users WHERE email = %s", (email,))
         user_data = cur.fetchone()
-        
+
         # Default values if no data exists
-        if user_data is None:
-            # If no user data is found, initialize all fields with default values
-            full_name = ""
-            skills = []
-            contact = ""
-            locations = []
-            experience = 0
-            job_role = ""
-            salary = ""
-            industries = []
-            job_type = ""
-        else:
-            # If user data is found, parse the fields
-            full_name = user_data[0] if user_data[0] else ""
-            skills = user_data[1].split(", ") if user_data[1] is not None else []  # Handle None case
-            contact = user_data[2] if user_data[2] else ""
-            locations = ast.literal_eval(user_data[3]) if user_data[3] else []
-            experience = user_data[4] if user_data[4] else 0
-            job_role = user_data[5] if user_data[5] else ""
-            salary = user_data[6] if user_data[6] else ""
-            industries = ast.literal_eval(user_data[7]) if user_data[7] else []
-            job_type = user_data[8] if user_data[8] else ""
+        full_name = user_data[0] if user_data and user_data[0] else ""
+        skills = ast.literal_eval(user_data[1]) if user_data and user_data[1] else []
+        contact = user_data[2] if user_data and user_data[2] else ""
+        locations = ast.literal_eval(user_data[3]) if user_data and user_data[3] else []
+        experience = user_data[4] if user_data and user_data[4] else 0
+        job_role = user_data[5] if user_data and user_data[5] else ""
+        salary = user_data[6] if user_data and user_data[6] else ""
+        industries = ast.literal_eval(user_data[7]) if user_data and user_data[7] else []
+        job_type = user_data[8] if user_data and user_data[8] else ""
 
         # Input fields
         full_name = st.text_input("Full Name", full_name)
@@ -140,25 +113,12 @@ def dashboard(email, role):
                 """, (full_name, skills, contact, locations, experience, job_role, salary, industries, job_type, email))
                 conn.commit()
                 st.success("Profile updated successfully!")
-
-                # Provide job recommendations after saving the profile
-                model = load_recommendation_model()
-                if model:
-                    input_data = {
-                        "skills": ", ".join(skills),
-                        "experience": experience,
-                        "job_role": job_role,
-                        "industries": ", ".join(industries),
-                        "job_type": job_type
-                    }
-                    recommendations = model.predict([input_data])  # Adjust based on your model's input format
-                    st.subheader("Top 5 Job Recommendations")
-                    for i, recommendation in enumerate(recommendations[:5], 1):
-                        st.write(f"{i}. {recommendation}")
-                else:
-                    st.error("Failed to load the recommendation model.")
             except Exception as e:
                 st.error(f"Error updating profile: {e}")
+
+    elif choice == "Job Recommendations":
+        st.subheader("Job Recommendations")
+        st.write("Coming soon...")
 
     elif choice == "Market Trends":
         st.subheader("Market Trends")
@@ -189,7 +149,6 @@ def dashboard(email, role):
                     st.error("Please enter some text before submitting.")
 
     conn.close()
-
 # Main function
 def main():
     st.title("User Authentication System")
