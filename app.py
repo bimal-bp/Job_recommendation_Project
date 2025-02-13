@@ -62,9 +62,38 @@ def get_market_trend_skills():
 
     return [trend[0] for trend in trends] if trends else []
 
+# Add market trend skills (Admin-only functionality)
+def add_market_trend_skill(skill):
+    conn = get_db_connection()
+    if not conn:
+        return False
+    
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO market_trends (trend) VALUES (%s)", (skill,))
+        conn.commit()
+        return True
+    except Exception as e:
+        st.error(f"Error adding skill: {e}")
+        return False
+    finally:
+        conn.close()
+
 # Market Trends Page
-def market_trends_page(email):
+def market_trends_page(email, is_admin=False):
     st.title("Market Trends")
+
+    if is_admin:
+        st.write("### Add New Market Trend Skill")
+        new_skill = st.text_input("Enter a new skill to add to market trends:")
+        if st.button("Add Skill"):
+            if new_skill:
+                if add_market_trend_skill(new_skill):
+                    st.success(f"Skill '{new_skill}' added to market trends!")
+                else:
+                    st.error("Failed to add skill.")
+            else:
+                st.warning("Please enter a skill.")
 
     # Fetch and display market trends
     market_trend_skills = get_market_trend_skills()
@@ -76,19 +105,20 @@ def market_trends_page(email):
     else:
         st.write("No market trends available.")
 
-    # Fetch user skills
-    user_skills = get_user_skills(email)
+    if not is_admin:
+        # Fetch user skills
+        user_skills = get_user_skills(email)
 
-    # Compare user skills with trending skills
-    missing_skills = list(set(market_trend_skills) - set(user_skills))
+        # Compare user skills with trending skills
+        missing_skills = list(set(market_trend_skills) - set(user_skills))
 
-    if missing_skills:
-        st.write("### Recommended Skills to Learn:")
-        for skill in missing_skills[:2]:  # Show only 2 missing skills
-            link = skill_links.get(skill, "#")
-            st.markdown(f"- [{skill}]({link})", unsafe_allow_html=True)
-    else:
-        st.write("You're up to date with the trending skills! 🎉")
+        if missing_skills:
+            st.write("### Recommended Skills to Learn:")
+            for skill in missing_skills[:2]:  # Show only 2 missing skills
+                link = skill_links.get(skill, "#")
+                st.markdown(f"- [{skill}]({link})", unsafe_allow_html=True)
+        else:
+            st.write("You're up to date with the trending skills! 🎉")
 
 # Profile Setup (Dashboard Page)
 def dashboard(email, role):
@@ -171,6 +201,36 @@ def dashboard(email, role):
 
     conn.close()
 
+# Register User
+def register_user(email, password):
+    conn = get_db_connection()
+    if not conn:
+        return False
+    
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO users (email, password) VALUES (%s, %s)", (email, password))
+        conn.commit()
+        return True
+    except Exception as e:
+        st.error(f"Error registering user: {e}")
+        return False
+    finally:
+        conn.close()
+
+# Authenticate User
+def authenticate_user(email, password):
+    conn = get_db_connection()
+    if not conn:
+        return None
+    
+    cur = conn.cursor()
+    cur.execute("SELECT role FROM users WHERE email = %s AND password = %s", (email, password))
+    user_data = cur.fetchone()
+    conn.close()
+
+    return user_data[0] if user_data else None
+
 # Authentication Page
 def authentication_page():
     option = st.radio("Select Option", ["Login", "Sign Up", "Admin Login"])
@@ -219,19 +279,16 @@ def main():
         st.session_state["role"] = None
 
     if st.session_state["logged_in"]:
-        menu_options = ["Profile Setup", "Market Trends"]
         if st.session_state["role"] == "admin":
-            menu_options.append("Admin Dashboard")
+            market_trends_page(st.session_state["email"], is_admin=True)
+        else:
+            menu_options = ["Profile Setup", "Market Trends"]
+            choice = st.sidebar.radio("Go to", menu_options)
 
-        choice = st.sidebar.radio("Go to", menu_options)
-
-        if choice == "Profile Setup":
-            dashboard(st.session_state["email"], st.session_state["role"])
-        elif choice == "Market Trends":
-            market_trends_page(st.session_state["email"])
-        elif choice == "Admin Dashboard":
-            st.write("Welcome to the Admin Dashboard")
-            # Add admin-specific functionality here
+            if choice == "Profile Setup":
+                dashboard(st.session_state["email"], st.session_state["role"])
+            elif choice == "Market Trends":
+                market_trends_page(st.session_state["email"])
     else:
         authentication_page()
 
