@@ -83,15 +83,54 @@ def dashboard(email, role):
         cur.execute("SELECT full_name, skills, contact, locations, experience, job_role, salary, industries, job_type FROM users WHERE email = %s", (email,))
         user_data = cur.fetchone()
 
+        # Debugging: Print user_data to check its structure
+        st.write("Debug: user_data =", user_data)
+
         # Default values if no data exists
         full_name = user_data[0] if user_data and user_data[0] else ""
-        skills = ast.literal_eval(user_data[1]) if user_data and user_data[1] else []
+        
+        # Handle skills field carefully
+        skills = []
+        if user_data and user_data[1]:
+            try:
+                skills = ast.literal_eval(user_data[1])  # Try to evaluate the string as a Python literal
+                if not isinstance(skills, list):  # Ensure it's a list
+                    st.warning("Skills data is not in the expected format. Resetting to an empty list.")
+                    skills = []
+            except (ValueError, SyntaxError) as e:
+                st.warning(f"Error parsing skills data: {e}. Resetting to an empty list.")
+                skills = []
+
         contact = user_data[2] if user_data and user_data[2] else ""
-        locations = ast.literal_eval(user_data[3]) if user_data and user_data[3] else []
+        
+        # Handle locations field carefully
+        locations = []
+        if user_data and user_data[3]:
+            try:
+                locations = ast.literal_eval(user_data[3])  # Try to evaluate the string as a Python literal
+                if not isinstance(locations, list):  # Ensure it's a list
+                    st.warning("Locations data is not in the expected format. Resetting to an empty list.")
+                    locations = []
+            except (ValueError, SyntaxError) as e:
+                st.warning(f"Error parsing locations data: {e}. Resetting to an empty list.")
+                locations = []
+
         experience = user_data[4] if user_data and user_data[4] else 0
         job_role = user_data[5] if user_data and user_data[5] else ""
         salary = user_data[6] if user_data and user_data[6] else ""
-        industries = ast.literal_eval(user_data[7]) if user_data and user_data[7] else []
+        
+        # Handle industries field carefully
+        industries = []
+        if user_data and user_data[7]:
+            try:
+                industries = ast.literal_eval(user_data[7])  # Try to evaluate the string as a Python literal
+                if not isinstance(industries, list):  # Ensure it's a list
+                    st.warning("Industries data is not in the expected format. Resetting to an empty list.")
+                    industries = []
+            except (ValueError, SyntaxError) as e:
+                st.warning(f"Error parsing industries data: {e}. Resetting to an empty list.")
+                industries = []
+
         job_type = user_data[8] if user_data and user_data[8] else ""
 
         # Input fields
